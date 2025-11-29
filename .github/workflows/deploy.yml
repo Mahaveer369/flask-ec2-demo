@@ -30,11 +30,13 @@ jobs:
           fi
           
           # Install dependencies
-          pip3 install -r requirements.txt --break-system-packages
+          pip3 install -r requirements.txt --break-system-packages || pip3 install -r requirements.txt
           
           # Restart the app
           pkill -f "python3.*app.py" || true
           nohup python3 app.py > app.log 2>&1 &
           
-          echo "Deployment completed successfully!"
-          ps aux | grep python3
+          # Verify deployment
+          sleep 2
+          echo "Deployment completed!"
+          ps aux | grep python3 | grep app.py
