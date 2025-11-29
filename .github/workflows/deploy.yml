@@ -1,0 +1,51 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Deploy to EC2
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ${{ secrets.EC2_USER }}
+      run: |
+        echo "$PRIVATE_KEY" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # Copy files to EC2
+        scp -o StrictHostKeyChecking=no -i private_key.pem -r ./* ${USER}@${HOST}:~/flask-app/
+        
+        # SSH into EC2 and deploy
+        ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} << 'EOF'
+          cd ~/flask-app
+          
+          # Create virtual environment if it doesn't exist
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          
+          # Activate virtual environment and install dependencies
+          source venv/bin/activate
+          pip install -r requirements.txt
+          
+          # Kill existing Flask process if running
+          pkill -f "python.*app.py" || true
+          
+          # Start the Flask app in the background
+          nohup python app.py > app.log 2>&1 &
+          
+          echo "Deployment completed successfully!"
+        EOF
+        
+        # Clean up private key
+        rm -f private_key.pem
