@@ -11,41 +11,30 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Deploy to EC2
-      env:
-        PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        HOST: ${{ secrets.EC2_HOST }}
-        USER: ${{ secrets.EC2_USER }}
-      run: |
-        echo "$PRIVATE_KEY" > private_key.pem
-        chmod 600 private_key.pem
-        
-        # Ensure flask-app directory exists on EC2
-        ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} "mkdir -p ~/flask-app"
-        
-        # Copy files to EC2
-        scp -o StrictHostKeyChecking=no -i private_key.pem -r ./* ${USER}@${HOST}:~/flask-app/
-        
-        # SSH into EC2 and deploy
-        ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} << 'EOF'
-          cd ~/flask-app
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        script: |
+          cd ~/flask-app || mkdir -p ~/flask-app && cd ~/flask-app
           
-          # Install pip and packages globally (no venv)
-          sudo apt update
-          sudo apt install python3-pip -y
+          # Update code from GitHub
+          if [ -d ".git" ]; then
+            git pull origin main
+          else
+            git clone https://github.com/Mahaveer369/flask-ec2-demo.git .
+          fi
+          
+          # Install dependencies
           pip3 install -r requirements.txt --break-system-packages
           
-          # Kill existing Flask process if running
+          # Restart the app
           pkill -f "python3.*app.py" || true
-          
-          # Start the Flask app in the background
           nohup python3 app.py > app.log 2>&1 &
           
           echo "Deployment completed successfully!"
-          echo "App is running on port 5000"
-        EOF
-        
-        # Clean up private key
-        rm -f private_key.pem
+          ps aux | grep python3
