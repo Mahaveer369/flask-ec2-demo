@@ -22,6 +22,9 @@ jobs:
         echo "$PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
         
+        # Ensure flask-app directory exists on EC2
+        ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} "mkdir -p ~/flask-app"
+        
         # Copy files to EC2
         scp -o StrictHostKeyChecking=no -i private_key.pem -r ./* ${USER}@${HOST}:~/flask-app/
         
@@ -39,10 +42,10 @@ jobs:
           pip install -r requirements.txt
           
           # Kill existing Flask process if running
-          pkill -f "python.*app.py" || true
+          pkill -f "python3.*app.py" || true
           
           # Start the Flask app in the background
-          nohup python app.py > app.log 2>&1 &
+          nohup python3 app.py > app.log 2>&1 &
           
           echo "Deployment completed successfully!"
         EOF
