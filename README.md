@@ -1,4 +1,5 @@
 # Flask EC2 Demo
+<!-- CI/CD Test: Automated deployment verification -->
 
 A simple Flask application with basic arithmetic operations, deployed to AWS EC2 using GitHub Actions.
 
